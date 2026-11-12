@@ -1,0 +1,35 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background:
+    radial-gradient(900px 520px at 20% -10%, rgba(45, 212, 191, 0.08), transparent 60%),
+    #070c16;
+  color: #e9eefc;
+  font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+main {
+  max-width: 520px;
+}
+
+.code {
+  margin: 0;
+  color: #5eead4;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+}
+
+h1 {
+  margin: 6px 0 18px;
+  font-size: clamp(24px, 5vw, 36px);
+  letter-spacing: -0.03em;
+}
+
+a {
+  color: #5eead4;
+  text-underline-offset: 3px;
+}
