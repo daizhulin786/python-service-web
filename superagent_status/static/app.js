@@ -2,6 +2,7 @@
 
 const REFRESH_MS = 5000;
 const SVG_NS = "http://www.w3.org/2000/svg";
+const THEME_STORAGE_KEY = "superagent-theme";
 
 const state = {
   data: null,
@@ -62,6 +63,8 @@ const els = {
   drawerTitle: document.getElementById("drawer-title"),
   drawerBody: document.getElementById("drawer-body"),
   drawerClose: document.getElementById("drawer-close"),
+  themeToggle: document.getElementById("theme-toggle"),
+  themeLabel: document.getElementById("theme-label"),
   footerClock: document.getElementById("footer-clock"),
 };
 
@@ -959,7 +962,34 @@ function refreshRelativeLabels() {
   }
 }
 
+function currentTheme() {
+  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+}
+
+function syncThemeToggle() {
+  const dark = currentTheme() === "dark";
+  const action = dark ? "切换到浅色主题" : "切换到深色主题";
+  els.themeLabel.textContent = dark ? "深色" : "浅色";
+  els.themeToggle.setAttribute("aria-label", action);
+  els.themeToggle.title = action;
+}
+
+function setTheme(theme) {
+  const next = theme === "light" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, next);
+  } catch (error) {
+    // Storage can be unavailable; the theme still applies for this page view.
+  }
+  syncThemeToggle();
+}
+
 // -- events ---------------------------------------------------------------
+
+els.themeToggle.addEventListener("click", () => {
+  setTheme(currentTheme() === "dark" ? "light" : "dark");
+});
 
 els.refresh.addEventListener("click", () => load({ manual: true }));
 
@@ -1026,6 +1056,7 @@ window.addEventListener("beforeunload", () => {
 
 // -- boot -----------------------------------------------------------------
 
+syncThemeToggle();
 updateCountdown();
 tick();
 load().then(() => {
