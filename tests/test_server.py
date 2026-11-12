@@ -42,7 +42,9 @@ class StatusServerTests(unittest.TestCase):
         status, headers, body = self._get("/")
         self.assertEqual(status, 200)
         self.assertIn("text/html", headers["Content-Type"])
-        self.assertIn("Superagent 状态台", body.decode("utf-8"))
+        html = body.decode("utf-8")
+        self.assertIn("Superagent 状态台", html)
+        self.assertIn('id="theme-toggle"', html)
         self.assertIn("default-src 'self'", headers["Content-Security-Policy"])
         self.assertEqual(headers["Cache-Control"], "no-store")
 
@@ -63,6 +65,7 @@ class StatusServerTests(unittest.TestCase):
     def test_static_assets(self) -> None:
         for path, content_type in (
             ("/static/app.js", "text/javascript"),
+            ("/static/theme.js", "text/javascript"),
             ("/static/styles.css", "text/css"),
             ("/favicon.svg", "image/svg+xml"),
         ):
