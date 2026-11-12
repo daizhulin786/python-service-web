@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="只读的 dsh-superagent 本地状态监控页面">
+  <title>Superagent 状态台</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#tickets">跳到工单列表</a>
+
+  <svg class="svg-defs" aria-hidden="true" focusable="false">
+    <symbol id="i-logo" viewBox="0 0 24 24">
+      <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M8 15.2V8.8l4 3.1 4-3.1v6.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-ticket" viewBox="0 0 24 24">
+      <path d="M4 8.2A1.2 1.2 0 0 1 5.2 7h13.6A1.2 1.2 0 0 1 20 8.2v2.1a2 2 0 0 0 0 3.4v2.1a1.2 1.2 0 0 1-1.2 1.2H5.2A1.2 1.2 0 0 1 4 15.8v-2.1a2 2 0 0 0 0-3.4V8.2Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M14 7v10" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 3" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24">
+      <path d="M3 12h4l2.2-5.5 4 12L16 12h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24">
+      <path d="M2.8 12S6.2 6.2 12 6.2 21.2 12 21.2 12 17.8 17.8 12 17.8 2.8 12 2.8 12Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      <circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    </symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24">
+      <path d="M4 5.5h16l1 10.2a1.8 1.8 0 0 1-1.8 2H4.8a1.8 1.8 0 0 1-1.8-2L4 5.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M3.4 13.2h5.1l1.2 2h4.6l1.2-2h5.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24">
+      <path d="M13.2 2.8 5.6 13h5.1l-1 8.2 8.1-11h-5.2l.6-7.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24">
+      <path d="M19.2 8.2A7.6 7.6 0 1 0 20 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      <path d="M20 4.5V8.8h-4.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-search" viewBox="0 0 24 24">
+      <circle cx="10.8" cy="10.8" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/>
+      <path d="m15.4 15.4 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-close" viewBox="0 0 24 24">
+      <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-external" viewBox="0 0 24 24">
+      <path d="M14 4.8h5.2V10M19 5 10.4 13.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M18.8 14.2v4.2a1 1 0 0 1-1 1H5.8a1 1 0 0 1-1-1V6.2a1 1 0 0 1 1-1h4.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M12 7.4V12l3.1 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-database" viewBox="0 0 24 24">
+      <ellipse cx="12" cy="5.8" rx="7.2" ry="3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M4.8 5.8v12.4c0 1.7 3.2 3 7.2 3s7.2-1.3 7.2-3V5.8M4.8 12c0 1.7 3.2 3 7.2 3s7.2-1.3 7.2-3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    </symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24">
+      <rect x="7" y="7" width="10" height="10" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <rect x="10" y="10" width="4" height="4" rx="0.8" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M9 3.8v3.1M15 3.8v3.1M9 17.1v3.1M15 17.1v3.1M3.8 9h3.1M3.8 15h3.1M17.1 9h3.1M17.1 15h3.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24">
+      <path d="m5.5 12.2 4.2 4.2 8.8-9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24">
+      <path d="M12 4.2 21 20H3L12 4.2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M12 9.2v4.6M12 17.2h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24">
+      <path d="M4.5 12h14M13.5 6.8 18.7 12l-5.2 5.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+  </svg>
+
+  <div class="ambient" aria-hidden="true"><span class="orb orb-a"></span><span class="orb orb-b"></span></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark"><svg class="icon"><use href="#i-logo"></use></svg></span>
+      <div class="brand-copy">
+        <p class="eyebrow">DSH · SUPERVISOR</p>
+        <h1>Superagent 状态台</h1>
+        <p class="subtitle">实时查看调度器、工单与 Worker 的运行状态</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <div id="connection" class="connection" data-state="loading" role="status" aria-live="polite">
+        <span class="connection-dot"></span>
+        <span id="connection-label">连接中</span>
+      </div>
+      <button id="refresh" class="button ghost" type="button" title="立即刷新">
+        <svg class="icon"><use href="#i-refresh"></use></svg>
+        <span>刷新</span>
+      </button>
+      <label class="switch" for="auto-refresh">
+        <input id="auto-refresh" type="checkbox" checked>
+        <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+        <span class="switch-label">自动刷新</span>
+      </label>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">全链路总览</p>
+        <h2 id="hero-title">所有工作，一眼掌握。</h2>
+        <p>数据直接读取本机 superagent 状态库，只读打开，不会干扰正在运行的 Worker。</p>
+      </div>
+      <div class="hero-meta">
+        <p>最后刷新 <strong id="last-updated">--:--:--</strong></p>
+        <p id="refresh-note">每 5 秒自动更新</p>
+      </div>
+    </section>
+
+    <div id="error-banner" class="error-banner" hidden>
+      <svg class="icon"><use href="#i-alert"></use></svg>
+      <div>
+        <strong>状态数据暂不可用</strong>
+        <p id="error-message"></p>
+      </div>
+    </div>
+
+    <section class="metrics" aria-label="关键指标">
+      <article class="metric" data-accent="mint">
+        <div class="metric-head">
+          <span class="metric-icon"><svg class="icon"><use href="#i-ticket"></use></svg></span>
+          <span class="metric-label">活跃工单</span>
+        </div>
+        <p class="metric-value" id="metric-open">—</p>
+        <p class="metric-hint">尚未结束的工单</p>
+      </article>
+      <article class="metric" data-accent="blue">
+        <div class="metric-head">
+          <span class="metric-icon"><svg class="icon"><use href="#i-activity"></use></svg></span>
+          <span class="metric-label">运行中</span>
+        </div>
+        <p class="metric-value" id="metric-running">—</p>
+        <p class="metric-hint">正在工作的 Worker</p>
+      </article>
+      <article class="metric" data-accent="amber">
+        <div class="metric-head">
+          <span class="metric-icon"><svg class="icon"><use href="#i-eye"></use></svg></span>
+          <span class="metric-label">待评审</span>
+        </div>
+        <p class="metric-value" id="metric-review">—</p>
+        <p class="metric-hint">已交付、等待人工处理</p>
+      </article>
+      <article class="metric" data-accent="violet">
+        <div class="metric-head">
+          <span class="metric-icon"><svg class="icon"><use href="#i-inbox"></use></svg></span>
+          <span class="metric-label">待处理消息</span>
+        </div>
+        <p class="metric-value" id="metric-messages">—</p>
+        <p class="metric-hint">等待处理或送达的消息</p>
+      </article>
+      <article class="metric" data-accent="rose">
+        <div class="metric-head">
+          <span class="metric-icon"><svg class="icon"><use href="#i-bolt"></use></svg></span>
+          <span class="metric-label">近 1 小时触发</span>
+        </div>
+        <p class="metric-value" id="metric-triggers">—</p>
+        <p class="metric-hint">新收到的请求</p>
+      </article>
+    </section>
+
+    <section class="split">
+      <div class="stack">
+        <section class="panel workers-panel" aria-labelledby="workers-title">
+          <header class="panel-head">
+            <div>
+              <p class="eyebrow">LIVE WORKERS</p>
+              <h3 id="workers-title">进行中的工作</h3>
+            </div>
+            <span class="count-badge" id="workers-count">0</span>
+          </header>
+          <div id="workers" class="workers"></div>
+        </section>
+
+        <section class="panel activity-panel" aria-labelledby="activity-title">
+          <header class="panel-head">
+            <div>
+              <p class="eyebrow">ACTIVITY</p>
+              <h3 id="activity-title">最近动态</h3>
+            </div>
+            <span class="count-badge" id="activity-count">0</span>
+          </header>
+          <ol id="activity-feed" class="activity-feed"></ol>
+        </section>
+      </div>
+
+      <aside class="panel system-panel" aria-labelledby="system-title">
+        <header class="panel-head">
+          <div>
+            <p class="eyebrow">SYSTEM</p>
+            <h3 id="system-title">系统状态</h3>
+          </div>
+          <span id="system-health" class="health-badge" data-state="loading">检查中</span>
+        </header>
+        <dl class="system-list">
+          <div class="system-row">
+            <dt><svg class="icon"><use href="#i-database"></use></svg> 状态库</dt>
+            <dd id="sys-storage">—</dd>
+          </div>
+          <div class="system-row">
+            <dt><svg class="icon"><use href="#i-clock"></use></svg> 数据更新时间</dt>
+            <dd id="sys-updated">—</dd>
+          </div>
+          <div class="system-row">
+            <dt><svg class="icon"><use href="#i-inbox"></use></svg> 待投递回复</dt>
+            <dd id="sys-outbox">—</dd>
+          </div>
+          <div class="system-row">
+            <dt><svg class="icon"><use href="#i-check"></use></svg> 今日结束</dt>
+            <dd id="sys-ended">—</dd>
+          </div>
+          <div class="system-row">
+            <dt><svg class="icon"><use href="#i-bolt"></use></svg> 最近触发</dt>
+            <dd id="sys-last-trigger">—</dd>
+          </div>
+        </dl>
+
+        <div class="source-block">
+          <div class="source-head">
+            <span>工单来源</span>
+            <span id="source-total">0 个工单</span>
+          </div>
+          <div id="source-bars" class="source-bars"></div>
+        </div>
+
+        <div class="trigger-block">
+          <div class="source-head">
+            <span>最近触发</span>
+            <span id="trigger-count">0 条</span>
+          </div>
+          <div id="trigger-list" class="trigger-list"></div>
+        </div>
+
+        <p class="path" id="sys-path" title="">—</p>
+      </aside>
+    </section>
+
+    <section id="tickets" class="panel tickets-panel" aria-labelledby="tickets-title">
+      <header class="panel-head tickets-head">
+        <div>
+          <p class="eyebrow">TICKETS</p>
+          <h3 id="tickets-title">工单 <span class="title-count" id="tickets-count">0</span></h3>
+        </div>
+        <div class="ticket-tools">
+          <div class="filters" role="group" aria-label="筛选工单">
+            <button class="filter is-active" type="button" data-filter="all">全部 <span id="filter-all">0</span></button>
+            <button class="filter" type="button" data-filter="active">进行中 <span id="filter-active">0</span></button>
+            <button class="filter" type="button" data-filter="review">待评审 <span id="filter-review">0</span></button>
+            <button class="filter" type="button" data-filter="ended">已结束 <span id="filter-ended">0</span></button>
+          </div>
+          <label class="search">
+            <svg class="icon"><use href="#i-search"></use></svg>
+            <input id="search" type="search" placeholder="搜索标题、工单或 Worker" autocomplete="off">
+          </label>
+        </div>
+      </header>
+
+      <div class="table-wrap" id="table-wrap">
+        <table class="ticket-table">
+          <thead>
+            <tr>
+              <th scope="col">工单</th>
+              <th scope="col">状态</th>
+              <th scope="col">来源</th>
+              <th scope="col">Worker</th>
+              <th scope="col">用时 / 更新</th>
+              <th scope="col">PR</th>
+            </tr>
+          </thead>
+          <tbody id="ticket-rows"></tbody>
+        </table>
+        <div id="ticket-empty" class="empty" hidden>
+          <span class="empty-mark"><svg class="icon"><use href="#i-ticket"></use></svg></span>
+          <h4>没有匹配的工单</h4>
+          <p>调整筛选或搜索词再试一次。</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>只读模式 · 绑定 127.0.0.1 · dsh-superagent</span>
+      <span id="footer-clock">—</span>
+    </footer>
+  </main>
+
+  <div id="drawer" class="drawer" aria-hidden="true">
+    <div class="drawer-backdrop" data-close="true"></div>
+    <section class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+      <header class="drawer-head">
+        <div>
+          <span class="drawer-eyebrow" id="drawer-source">—</span>
+          <h2 id="drawer-title">工单详情</h2>
+        </div>
+        <button class="icon-button" id="drawer-close" type="button" aria-label="关闭详情">
+          <svg class="icon"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+      <div class="drawer-body" id="drawer-body"></div>
+    </section>
+  </div>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
