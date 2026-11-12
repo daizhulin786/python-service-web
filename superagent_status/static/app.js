@@ -44,6 +44,8 @@ const els = {
   sourceTotal: document.getElementById("source-total"),
   triggerList: document.getElementById("trigger-list"),
   triggerCount: document.getElementById("trigger-count"),
+  chatGroups: document.getElementById("chat-groups"),
+  chatCount: document.getElementById("chat-count"),
   sysPath: document.getElementById("sys-path"),
   ticketRows: document.getElementById("ticket-rows"),
   ticketEmpty: document.getElementById("ticket-empty"),
@@ -538,6 +540,65 @@ function renderTriggers() {
   }
 }
 
+function chatMessage(message) {
+  const sender = message.sender || "未知成员";
+  const initial = Array.from(sender)[0] || "?";
+  const time = relativeNode(message.at);
+  time.classList.add("chat-time");
+  return h(
+    "li",
+    { class: "chat-message" },
+    h(
+      "div",
+      { class: "chat-message-head" },
+      h("span", { class: "chat-avatar", "aria-hidden": "true" }, initial),
+      h("span", { class: "chat-sender", title: sender }, sender),
+      time,
+    ),
+    h("p", { class: "chat-text" }, message.text || "（无文本内容）"),
+  );
+}
+
+function renderDingtalk() {
+  clear(els.chatGroups);
+  const dingtalk = state.data?.dingtalk || {};
+  const groups = dingtalk.groups || [];
+  els.chatCount.textContent = numberFmt.format(dingtalk.messageCount || 0);
+
+  if (!groups.length) {
+    els.chatGroups.append(
+      emptyPanel(
+        "机器人还没有收到群消息",
+        "机器人被加入群并收到消息后会显示在这里；只显示群聊，不含私聊，也不回溯接入前的历史记录。",
+        "chat",
+      ),
+    );
+    return;
+  }
+
+  for (const group of groups) {
+    const messages = group.messages || [];
+    const count = group.messageCount || messages.length;
+    const head = h(
+      "header",
+      { class: "chat-group-head" },
+      h("span", { class: "chat-group-mark", "aria-hidden": "true" }, icon("chat")),
+      h(
+        "div",
+        { class: "chat-group-title" },
+        h("h4", { title: group.title || "" }, group.title || "钉钉群聊"),
+        h("p", {}, "最近 ", relativeNode(group.lastAt)),
+      ),
+      h("span", { class: "count-badge" }, numberFmt.format(count)),
+    );
+    const list = h("ol", { class: "chat-messages" });
+    for (const message of messages) {
+      list.append(chatMessage(message));
+    }
+    els.chatGroups.append(h("article", { class: "chat-group" }, head, list));
+  }
+}
+
 // -- ticket table ---------------------------------------------------------
 
 function filterMatches(ticket, filter) {
@@ -816,6 +877,7 @@ function render() {
   renderActivity();
   renderSystem();
   renderTriggers();
+  renderDingtalk();
   renderTickets();
   if (state.selectedId) renderDrawer();
 }

@@ -30,11 +30,79 @@ class StatusStoreTests(unittest.TestCase):
         self.assertEqual(payload["summary"]["reviewTickets"], 1)
         self.assertEqual(payload["summary"]["pendingMessages"], 3)
         self.assertEqual(payload["system"]["pendingDeliveries"], 1)
-        self.assertEqual(payload["system"]["triggersLastHour"], 3)
+        self.assertEqual(payload["system"]["triggersLastHour"], 5)
         self.assertEqual(payload["system"]["totalTickets"], 6)
         self.assertEqual(payload["system"]["endedToday"], 1)
-        self.assertEqual(len(payload["recentTriggers"]), 5)
+        self.assertEqual(len(payload["recentTriggers"]), 6)
         self.assertEqual(payload["recentTriggers"][0]["text"], "fixture trigger 0")
+
+    def test_dingtalk_group_messages(self) -> None:
+        payload = load_status(self.state_dir, now=NOW)
+        dingtalk = payload["dingtalk"]
+        self.assertEqual(dingtalk["groupCount"], 2)
+        self.assertEqual(dingtalk["messageCount"], 4)
+        self.assertTrue(dingtalk["lastMessageAt"].startswith("2026-11-12T03:27"))
+
+        groups = {group["id"]: group for group in dingtalk["groups"]}
+        self.assertEqual(set(groups), {"cidFixtureGroupA==", "cidFixtureGroupB=="})
+        self.assertNotIn("cidFixtureDirectd1", groups)
+
+        main = groups["cidFixtureGroupA=="]
+        self.assertEqual(main["title"], "测试自用")
+        self.assertEqual(main["messageCount"], 3)
+        self.assertEqual(len(main["messages"]), 3)
+        self.assertEqual(main["messages"][0]["text"], "README 的标题层级需要统一一下，顺便确认锚点是否可用。")
+        self.assertEqual(main["messages"][0]["sender"], "代竹林")
+        self.assertEqual(main["messages"][1]["sender"], "林小满")
+
+        self.assertEqual(groups["cidFixtureGroupB=="]["title"], "产品讨论")
+        self.assertEqual(groups["cidFixtureGroupB=="]["messages"][0]["sender"], "周航")
+
+    def test_dingtalk_messages_exclude_direct_and_other_sources(self) -> None:
+        payload = load_status(self.state_dir, now=NOW)
+        texts = [
+            message["text"]
+            for group in payload["dingtalk"]["groups"]
+            for message in group["messages"]
+        ]
+        self.assertNotIn("私聊消息不应出现在群消息面板。", texts)
+        self.assertNotIn("fixture trigger 0", texts)
+
+    def test_group_detection_falls_back_to_channel_address(self) -> None:
+        connection = sqlite3.connect(self.state_dir / "orchestrator.sqlite")
+        try:
+            for trigger_id, conversation_id, direct in (
+                ("trg-address-group", "cidAddressOnly==", "false"),
+                ("trg-address-direct", "cidAddressDirect==", "true"),
+                ("trg-address-unknown", "cidAddressUnknown==", None),
+            ):
+                address = {"conversationId": conversation_id}
+                if direct is not None:
+                    address["direct"] = direct
+                value = {
+                    "id": trigger_id,
+                    "source": "dingtalk",
+                    "at": "2026-11-12T03:29:00Z",
+                    "text": f"address fallback {trigger_id}",
+                    "channel": {
+                        "source": "dingtalk",
+                        "thread": f"dingtalk:{conversation_id}:msg-{trigger_id}",
+                        "address": address,
+                    },
+                }
+                connection.execute(
+                    "INSERT INTO trigger (id, value, at) VALUES (?, ?, ?)",
+                    (trigger_id, json.dumps(value, ensure_ascii=False), value["at"]),
+                )
+            connection.commit()
+        finally:
+            connection.close()
+
+        payload = load_status(self.state_dir, now=NOW)
+        groups = {group["id"]: group for group in payload["dingtalk"]["groups"]}
+        self.assertIn("cidAddressOnly==", groups)
+        self.assertNotIn("cidAddressDirect==", groups)
+        self.assertNotIn("cidAddressUnknown==", groups)
 
     def test_ticket_states_and_pr(self) -> None:
         payload = load_status(self.state_dir, now=NOW)
