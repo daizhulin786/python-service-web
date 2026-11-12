@@ -64,6 +64,53 @@ def _ticket(
     return ticket
 
 
+def _dingtalk_trigger(
+    suffix: str,
+    at: datetime,
+    text: str,
+    *,
+    group: bool = True,
+    conversation: str = "cidFixtureGroupA==",
+    title: str = "测试自用",
+    sender: str = "代竹林",
+) -> dict[str, Any]:
+    """Build a DingTalk trigger as superagent stores it."""
+    msg_id = f"msg-fixture-{suffix}"
+    conversation_id = conversation if group else f"cidFixtureDirect{suffix}"
+    trigger: dict[str, Any] = {
+        "id": f"trg-fixture-{suffix}",
+        "source": "dingtalk",
+        "threads": [{"source": "dingtalk", "id": f"{conversation_id}:{msg_id}"}],
+        "actor": {"source": "dingtalk", "id": f"user-fixture-{suffix}"},
+        "human": True,
+        "addressed": "mention",
+        "at": _iso(at),
+        "text": text,
+        "channel": {
+            "source": "dingtalk",
+            "thread": f"dingtalk:{conversation_id}:{msg_id}",
+            "address": {
+                "conversationId": conversation_id,
+                "msgId": msg_id,
+                "direct": "false" if group else "true",
+                "userId": f"user-fixture-{suffix}",
+            },
+        },
+        "meta": {
+            "conversationId": conversation_id,
+            "msgId": msg_id,
+            "direct": not group,
+            "mentioned": True,
+            "senderId": f"user-fixture-{suffix}",
+            "senderNick": sender,
+            "conversationTitle": title,
+        },
+    }
+    if not group:
+        trigger["meta"].pop("conversationTitle")
+    return trigger
+
+
 def build_demo_db(path: Path, now: datetime | None = None) -> Path:
     """Create the synthetic state database used by tests and screenshots."""
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
@@ -218,20 +265,47 @@ def build_demo_db(path: Path, now: datetime | None = None) -> Path:
             "pending": [{"id": "pending-1"}, {"id": "pending-2"}],
         }
     ]
-    triggers = []
-    for index, minutes in enumerate((5, 18, 42, 180, 190)):
-        at = now - timedelta(minutes=minutes)
-        triggers.append(
-            {
-                "id": f"trg-fixture-{index}",
-                "source": "github" if index % 2 else "dingtalk",
-                "threads": [{"source": "github", "id": "12"}],
-                "human": True,
-                "at": _iso(at),
-                "text": f"fixture trigger {index}",
-                "url": "https://github.com/acme/widgets/issues/12",
-            }
-        )
+    triggers = [
+        {
+            "id": "trg-fixture-github-0",
+            "source": "github",
+            "threads": [{"source": "github", "id": "12"}],
+            "human": True,
+            "at": _iso(now - timedelta(minutes=2)),
+            "text": "fixture trigger 0",
+            "url": "https://github.com/acme/widgets/issues/12",
+        },
+        _dingtalk_trigger(
+            "a1",
+            now - timedelta(minutes=3),
+            "README 的标题层级需要统一一下，顺便确认锚点是否可用。",
+        ),
+        _dingtalk_trigger(
+            "a2",
+            now - timedelta(minutes=9),
+            "CI 已经跑过了，等评审。",
+            sender="林小满",
+        ),
+        _dingtalk_trigger(
+            "b1",
+            now - timedelta(minutes=25),
+            "下周的发布计划定在周四可以吗？",
+            conversation="cidFixtureGroupB==",
+            title="产品讨论",
+            sender="周航",
+        ),
+        _dingtalk_trigger(
+            "a3",
+            now - timedelta(hours=3),
+            "这条是接入后较早的群消息。",
+        ),
+        _dingtalk_trigger(
+            "d1",
+            now - timedelta(minutes=6),
+            "私聊消息不应出现在群消息面板。",
+            group=False,
+        ),
+    ]
 
     outbox = [
         {"id": "outbox-pending", "kind": "reply", "status": "pending", "text": "pending reply"},

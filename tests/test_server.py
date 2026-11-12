@@ -54,6 +54,8 @@ class StatusServerTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["summary"]["openTickets"], 4)
         self.assertEqual(len(payload["tickets"]), 6)
+        self.assertEqual(payload["dingtalk"]["groupCount"], 2)
+        self.assertEqual(payload["dingtalk"]["messageCount"], 4)
 
     def test_health_endpoint(self) -> None:
         status, _, body = self._get("/healthz")

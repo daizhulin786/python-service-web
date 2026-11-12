@@ -21,6 +21,9 @@ DEFAULT_STATE_DIR_ENV = "SUPERAGENT_STATE_DIR"
 
 MAX_REPORT_CHARS = 6000
 MAX_EVENTS = 40
+MAX_CHAT_MESSAGE_CHARS = 500
+MAX_CHAT_GROUPS = 12
+MAX_CHAT_MESSAGES_PER_GROUP = 50
 
 PR_URL_RE = re.compile(r"https?://github\.com/[^/\s]+/[^/\s]+/pull/(\d+)")
 
@@ -191,6 +194,110 @@ def _safe_text(value: Any) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
+def _clip(value: Any, limit: int) -> str:
+    if not isinstance(value, str):
+        return ""
+    text = value.strip()
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + "…"
+
+
+def _trigger_address(trigger: dict[str, Any]) -> dict[str, Any]:
+    return _as_dict(_as_dict(trigger.get("channel")).get("address"))
+
+
+def _is_group_trigger(trigger: dict[str, Any]) -> bool:
+    """True only when the trigger is known to come from a group chat."""
+    meta = _as_dict(trigger.get("meta"))
+    direct = meta.get("direct")
+    if direct is None:
+        direct = _trigger_address(trigger).get("direct")
+    if isinstance(direct, str):
+        direct = direct.strip().lower() == "true"
+    return direct is False
+
+
+def _trigger_conversation(trigger: dict[str, Any]) -> tuple[str, str]:
+    """Return the DingTalk conversation id and its display title."""
+    meta = _as_dict(trigger.get("meta"))
+    address = _trigger_address(trigger)
+    conversation_id = meta.get("conversationId") or address.get("conversationId")
+    if not isinstance(conversation_id, str) or not conversation_id:
+        conversation_id = ""
+        thread = trigger.get("channel", {}) if isinstance(trigger.get("channel"), dict) else {}
+        key = thread.get("thread") if isinstance(thread.get("thread"), str) else ""
+        if key.startswith("dingtalk:") and ":" in key[len("dingtalk:") :]:
+            conversation_id = key[len("dingtalk:") :].rsplit(":", 1)[0]
+    title = meta.get("conversationTitle")
+    return conversation_id, _safe_text(title)
+
+
+def _dingtalk_group_message(trigger: dict[str, Any]) -> tuple[str, str, dict[str, Any]] | None:
+    """Turn one group-chat trigger into a conversation id, title and message."""
+    if trigger.get("source") != "dingtalk" or not _is_group_trigger(trigger):
+        return None
+    conversation_id, title = _trigger_conversation(trigger)
+    at = trigger.get("at")
+    if not conversation_id or _parse_dt(at) is None:
+        return None
+    meta = _as_dict(trigger.get("meta"))
+    sender = _safe_text(meta.get("senderNick")) or _safe_text(_as_dict(trigger.get("actor")).get("id"))
+    return (
+        conversation_id,
+        title,
+        {
+            "id": trigger.get("id"),
+            "sender": sender or "未知成员",
+            "at": at,
+            "text": _clip(trigger.get("text"), MAX_CHAT_MESSAGE_CHARS),
+        },
+    )
+
+
+def _build_dingtalk(triggers_raw: list[dict[str, Any]]) -> dict[str, Any]:
+    """Collect the group-chat messages the robot received, newest first."""
+    groups: dict[str, dict[str, Any]] = {}
+    for trigger in triggers_raw:
+        item = _dingtalk_group_message(trigger)
+        if item is None:
+            continue
+        conversation_id, title, message = item
+        group = groups.setdefault(
+            conversation_id,
+            {"id": conversation_id, "title": title, "messages": []},
+        )
+        if title:
+            group["title"] = title
+        group["messages"].append(message)
+
+    unknown = datetime.min.replace(tzinfo=timezone.utc)
+    built: list[dict[str, Any]] = []
+    for group in groups.values():
+        messages = sorted(
+            group["messages"],
+            key=lambda message: _parse_dt(message.get("at")) or unknown,
+            reverse=True,
+        )
+        built.append(
+            {
+                "id": group["id"],
+                "title": group["title"] or "钉钉群聊",
+                "lastAt": messages[0].get("at") if messages else None,
+                "messageCount": len(messages),
+                "messages": messages[:MAX_CHAT_MESSAGES_PER_GROUP],
+            }
+        )
+    built.sort(key=lambda group: _parse_dt(group.get("lastAt")) or unknown, reverse=True)
+    built = built[:MAX_CHAT_GROUPS]
+    return {
+        "groupCount": len(built),
+        "messageCount": sum(group["messageCount"] for group in built),
+        "lastMessageAt": built[0]["lastAt"] if built else None,
+        "groups": built,
+    }
+
+
 def _build_ticket(
     ticket: dict[str, Any],
     trigger_urls: dict[str, str],
@@ -333,6 +440,12 @@ def _empty_status(state_dir: Path, now: datetime) -> dict[str, Any]:
         "tickets": [],
         "events": [],
         "recentTriggers": [],
+        "dingtalk": {
+            "groupCount": 0,
+            "messageCount": 0,
+            "lastMessageAt": None,
+            "groups": [],
+        },
     }
 
 
@@ -551,6 +664,7 @@ def load_status(
     payload["tickets"] = tickets
     payload["events"] = events[:MAX_EVENTS]
     payload["recentTriggers"] = recent_triggers[:6]
+    payload["dingtalk"] = _build_dingtalk(triggers_raw)
     return payload
 
 
