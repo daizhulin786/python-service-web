@@ -3,10 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="dark light">
   <meta name="description" content="只读的 dsh-superagent 本地状态监控页面">
   <title>Superagent 状态台</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script src="/static/theme.js"></script>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
@@ -73,6 +74,13 @@
     <symbol id="i-arrow" viewBox="0 0 24 24">
       <path d="M4.5 12h14M13.5 6.8 18.7 12l-5.2 5.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
     </symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+      <path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24">
+      <path d="M20.4 14.2A8.4 8.4 0 0 1 9.8 3.6 8.4 8.4 0 1 0 20.4 14.2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    </symbol>
   </svg>
 
   <div class="ambient" aria-hidden="true"><span class="orb orb-a"></span><span class="orb orb-b"></span></div>
@@ -91,6 +99,11 @@
         <span class="connection-dot"></span>
         <span id="connection-label">连接中</span>
       </div>
+      <button id="theme-toggle" class="button theme-toggle" type="button" title="切换到浅色主题" aria-label="切换到浅色主题">
+        <svg class="icon theme-icon-moon" aria-hidden="true" focusable="false"><use href="#i-moon"></use></svg>
+        <svg class="icon theme-icon-sun" aria-hidden="true" focusable="false"><use href="#i-sun"></use></svg>
+        <span id="theme-label">深色</span>
+      </button>
       <button id="refresh" class="button ghost" type="button" title="立即刷新">
         <svg class="icon"><use href="#i-refresh"></use></svg>
         <span>刷新</span>
