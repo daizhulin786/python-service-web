@@ -1474,7 +1474,7 @@ button {
 
 .ticket-table td {
   padding: 13px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--tint) 18%, transparent);
   vertical-align: middle;
 }
 
