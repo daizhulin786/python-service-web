@@ -1478,6 +1478,10 @@ button {
   vertical-align: middle;
 }
 
+:root[data-theme="light"] .ticket-table td {
+  border-bottom: 0;
+}
+
 .ticket-table tbody tr:last-child td {
   border-bottom: 0;
 }
