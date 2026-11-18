@@ -1548,6 +1548,12 @@ button {
   background: color-mix(in srgb, var(--blue) 7%, transparent);
 }
 
+.badge[data-state="pr_review"] {
+  color: var(--blue);
+  border-color: color-mix(in srgb, var(--blue) 32%, transparent);
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+}
+
 .badge[data-state="ready"] {
   color: var(--blue);
   border-color: color-mix(in srgb, var(--blue) 25%, transparent);

@@ -74,6 +74,7 @@ const STATE_LABELS = {
   waiting: "等待中",
   idle: "空闲",
   review: "待评审",
+  pr_review: "PR 审核中",
   ready: "已交付",
   progress: "进度更新",
   blocked: "受阻",
@@ -606,7 +607,7 @@ function renderDingtalk() {
 
 function filterMatches(ticket, filter) {
   if (filter === "all") return true;
-  if (filter === "review") return ticket.state === "review";
+  if (filter === "review") return ticket.state === "review" || ticket.state === "pr_review";
   if (filter === "ended") return ticket.state === "ended" || ticket.state === "dropped";
   if (filter === "active") {
     return ["working", "queued", "waiting", "blocked", "failed"].includes(ticket.state);

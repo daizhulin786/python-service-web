@@ -140,11 +140,17 @@ def _latest_assignment(ticket: dict[str, Any]) -> dict[str, Any] | None:
     return assignments[-1]
 
 
-def _ticket_state(ticket: dict[str, Any], assignment: dict[str, Any] | None) -> str:
+def _ticket_state(
+    ticket: dict[str, Any],
+    assignment: dict[str, Any] | None,
+    pr: dict[str, Any] | None,
+) -> str:
     if _as_dict(ticket.get("ended")).get("at"):
         return "ended"
     if assignment is None:
         return "waiting"
+    if _pr_awaiting_review(assignment, pr):
+        return "pr_review"
     state = assignment.get("state")
     if state == "running":
         return "working"
@@ -164,8 +170,94 @@ def _ticket_state(ticket: dict[str, Any], assignment: dict[str, Any] | None) -> 
     return "waiting"
 
 
+def _pr_awaiting_review(
+    assignment: dict[str, Any] | None,
+    pr: dict[str, Any] | None,
+) -> bool:
+    """True when the worker has delivered a PR and is now waiting for review.
+
+    A running worker keeps its assignment until the PR is merged or closed, so
+    a ready report with an open PR means the ball is in the reviewer's court.
+    A newer input delivered after that report means the worker is active again.
+    """
+    if assignment is None or pr is None:
+        return False
+    report = _as_dict(assignment.get("report"))
+    if report.get("state") != "ready":
+        return False
+    state = assignment.get("state")
+    if state == "ended":
+        return True
+    if state != "running":
+        return False
+    delivered = _parse_dt(assignment.get("deliveredAt"))
+    finished = _parse_dt(report.get("at")) or _parse_dt(assignment.get("idleAt"))
+    if delivered is None or finished is None:
+        return True
+    return delivered <= finished
+
+
+def _thread_meta_by_key(threads_raw: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    metas: dict[str, dict[str, Any]] = {}
+    for thread in threads_raw:
+        key = thread.get("key")
+        if isinstance(key, str) and key:
+            metas[key] = _as_dict(thread.get("meta"))
+    return metas
+
+
+def _own_pr(ticket: dict[str, Any], thread_meta: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
+    """Return the ticket's own pull request from the followed threads.
+
+    The returned dict has an ``open`` flag: the PR thread is still open when the
+    follow entry has no ``closed`` record yet.
+    """
+    fallback: dict[str, Any] | None = None
+    for follow in _as_list(ticket.get("follows")):
+        item = _as_dict(follow)
+        if item.get("own") is not True:
+            continue
+        key = item.get("thread")
+        if not isinstance(key, str) or not key.startswith("github:"):
+            continue
+        meta = thread_meta.get(key) or {}
+        if meta.get("isPr") is not True:
+            continue
+        number = meta.get("number")
+        if not isinstance(number, int):
+            tail = key.split(":", 1)[1]
+            number = int(tail) if tail.isdigit() else None
+        url = meta.get("url")
+        if number is None or not isinstance(url, str) or not url.startswith(("http://", "https://")):
+            continue
+        candidate = {
+            "number": number,
+            "url": url,
+            "open": not bool(item.get("closed")),
+        }
+        if candidate["open"]:
+            return candidate
+        if fallback is None:
+            fallback = candidate
+    return fallback
+
+
+def _ticket_pr(
+    ticket: dict[str, Any],
+    reports: list[dict[str, Any]],
+    thread_meta: dict[str, dict[str, Any]],
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Return the PR to display and the open PR awaiting review, if any."""
+    own = _own_pr(ticket, thread_meta)
+    if own is not None:
+        pr = {"number": own["number"], "url": own["url"]}
+        return pr, (pr if own["open"] else None)
+    pr = _extract_pr(ticket, reports)
+    return pr, pr
+
+
 def _extract_pr(ticket: dict[str, Any], reports: list[dict[str, Any]]) -> dict[str, Any] | None:
-    texts = [report.get("summary", "") for report in reports]
+    texts = [report.get("summary", "") for report in reversed(reports)]
     for input_item in _as_list(ticket.get("inputs")):
         text = _as_dict(input_item).get("text")
         if isinstance(text, str):
@@ -301,6 +393,7 @@ def _build_dingtalk(triggers_raw: list[dict[str, Any]]) -> dict[str, Any]:
 def _build_ticket(
     ticket: dict[str, Any],
     trigger_urls: dict[str, str],
+    thread_meta: dict[str, dict[str, Any]],
     now: datetime,
 ) -> dict[str, Any] | None:
     ticket_id = ticket.get("id")
@@ -313,7 +406,8 @@ def _build_ticket(
     report_history = [
         {"state": item["state"], "at": item["at"]} for item in reports if item.get("state")
     ]
-    state = _ticket_state(ticket, assignment)
+    pr, review_pr = _ticket_pr(ticket, reports, thread_meta)
+    state = _ticket_state(ticket, assignment, review_pr)
     source = _source_of(ticket)
     created = _parse_dt(ticket.get("createdAt"))
     ended = _as_dict(ticket.get("ended"))
@@ -327,7 +421,11 @@ def _build_ticket(
 
     if state == "ended":
         elapsed = _elapsed_seconds(created, ended_at)
-    elif state in ("review", "blocked", "failed", "dropped") and assignment is not None:
+    elif (
+        state in ("review", "pr_review", "blocked", "failed", "dropped")
+        and assignment is not None
+        and assignment.get("state") == "ended"
+    ):
         elapsed = _elapsed_seconds(started_at, _parse_dt(assignment.get("endedAt")))
     else:
         elapsed = _elapsed_seconds(started_at, now)
@@ -359,7 +457,6 @@ def _build_ticket(
         )
     activities.sort(key=lambda item: _parse_dt(item.get("at")) or datetime.min.replace(tzinfo=timezone.utc))
 
-    pr = _extract_pr(ticket, reports)
     execution = _as_dict(ticket.get("execution"))
     mandate = _as_dict(ticket.get("mandate"))
 
@@ -423,6 +520,7 @@ def _empty_status(state_dir: Path, now: datetime) -> dict[str, Any]:
             "openTickets": 0,
             "runningAssignments": 0,
             "reviewTickets": 0,
+            "prReviewTickets": 0,
             "pendingMessages": 0,
             "pendingDeliveries": 0,
             "triggersLastHour": 0,
@@ -434,6 +532,7 @@ def _empty_status(state_dir: Path, now: datetime) -> dict[str, Any]:
             "openTickets": 0,
             "runningAssignments": 0,
             "reviewTickets": 0,
+            "prReviewTickets": 0,
             "pendingMessages": 0,
             "triggersLastHour": 0,
         },
@@ -535,8 +634,9 @@ def load_status(
             trigger_times.append(parsed)
 
     tickets: list[dict[str, Any]] = []
+    thread_meta = _thread_meta_by_key(threads_raw)
     for ticket in tickets_raw:
-        built = _build_ticket(ticket, trigger_urls, now)
+        built = _build_ticket(ticket, trigger_urls, thread_meta, now)
         if built is not None:
             tickets.append(built)
 
@@ -551,7 +651,8 @@ def load_status(
 
     open_tickets = [item for item in tickets if item["state"] != "ended"]
     running = [item for item in tickets if item["state"] == "working"]
-    review = [item for item in tickets if item["state"] == "review"]
+    review = [item for item in tickets if item["state"] in ("review", "pr_review")]
+    pr_review = [item for item in tickets if item["state"] == "pr_review"]
 
     pending_messages = 0
     for thread in threads_raw:
@@ -646,6 +747,7 @@ def load_status(
             "openTickets": len(open_tickets),
             "runningAssignments": len(running),
             "reviewTickets": len(review),
+            "prReviewTickets": len(pr_review),
             "pendingMessages": pending_messages,
             "pendingDeliveries": pending_deliveries,
             "triggersLastHour": triggers_last_hour,
@@ -658,6 +760,7 @@ def load_status(
         "openTickets": len(open_tickets),
         "runningAssignments": len(running),
         "reviewTickets": len(review),
+        "prReviewTickets": len(pr_review),
         "pendingMessages": pending_messages,
         "triggersLastHour": triggers_last_hour,
     }
