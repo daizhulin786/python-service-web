@@ -9,6 +9,8 @@
   --tint: #94a3b8;
   --line: color-mix(in srgb, var(--tint) 13%, transparent);
   --line-strong: color-mix(in srgb, var(--tint) 26%, transparent);
+  --row-divider: color-mix(in srgb, var(--tint) 16%, transparent);
+  --row-divider-fade: 128px;
   --text: #e9eefc;
   --muted: #92a0b9;
   --faint: #64748b;
@@ -61,6 +63,8 @@
   --tint: #0f172a;
   --line: rgba(15, 23, 42, 0.1);
   --line-strong: rgba(15, 23, 42, 0.2);
+  --row-divider: color-mix(in srgb, var(--tint) 9%, transparent);
+  --row-divider-fade: 176px;
   --text: #0f172a;
   --muted: #475569;
   --faint: #64748b;
@@ -1460,12 +1464,23 @@ button {
 
 .ticket-table tbody tr {
   cursor: pointer;
-  transition: background 0.16s ease;
+  /* Fade the row rule at both ends so it reads as a soft divider, not a hard border. */
+  background-image: linear-gradient(
+    90deg,
+    transparent 0,
+    var(--row-divider) var(--row-divider-fade),
+    var(--row-divider) calc(100% - var(--row-divider-fade)),
+    transparent 100%
+  );
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+  transition: background-color 0.16s ease;
 }
 
 .ticket-table tbody tr:hover,
 .ticket-table tbody tr:focus-visible {
-  background: color-mix(in srgb, var(--mint) 3.5%, transparent);
+  background-color: color-mix(in srgb, var(--mint) 3.5%, transparent);
 }
 
 .ticket-table tbody tr:focus-visible {
@@ -1474,12 +1489,12 @@ button {
 
 .ticket-table td {
   padding: 13px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--tint) 18%, transparent);
+  border-bottom: 1px solid transparent;
   vertical-align: middle;
 }
 
-:root[data-theme="light"] .ticket-table td {
-  border-bottom: 0;
+.ticket-table tbody tr:last-child {
+  background-image: none;
 }
 
 .ticket-table tbody tr:last-child td {
